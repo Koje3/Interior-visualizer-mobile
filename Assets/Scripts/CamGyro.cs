@@ -12,8 +12,7 @@ public class CamGyro : MonoBehaviour
     private Quaternion rot;
 
 
-    public GameObject cameraPosition1;
-    public GameObject cameraPosition2;
+    public GameObject[] cameraPositions;
 
     private void Start()
     {
@@ -49,8 +48,8 @@ public class CamGyro : MonoBehaviour
 
     public void ChangePosition()
     {
-        Vector3 position1 = cameraPosition1.transform.position;
-        Vector3 position2 = cameraPosition2.transform.position;
+        Vector3 position1 = cameraPositions[1].transform.position;
+        Vector3 position2 = cameraPositions[2].transform.position;
 
         if (cameraContainer.transform.position == position1)
         {
