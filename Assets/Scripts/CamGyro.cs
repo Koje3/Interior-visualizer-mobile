@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 
 public class CamGyro : MonoBehaviour
@@ -8,11 +9,16 @@ public class CamGyro : MonoBehaviour
     public Camera arCamera;
     public GameObject cameraPositions;
     public GameObject startPosition;
+    public GameObject cameraTopViewPosition;
+    [Space(10)]
     public GameObject ceilingLights;
-    public GameObject roof;
-    public GameObject camera2DPosition;
+    public GameObject roof;   
+    public GameObject button2D;
+    [Space(10)]
     public float panSpeed = 0.1f;
     public float zoomSpeed = 0.1f;
+    public float zoomSpeed3D = 1f;
+    [Space(10)]
     public float zoomOutMin = 1f;
     public float zoomOutMax = 10f;
 
@@ -28,6 +34,12 @@ public class CamGyro : MonoBehaviour
     private GameObject previousCameraPosition;
 
     private bool camera2D;
+    private bool topView;
+
+    private float startFieldOfView;
+    private float tempFieldOfView;
+    private float startOrthographicSize;
+    private float tempOrthographicSize;
 
 
    // public GameObject[] cameraPositions;
@@ -46,7 +58,13 @@ public class CamGyro : MonoBehaviour
         roof.SetActive(true);
 
         camera2D = false;
+        topView = false;
 
+        startFieldOfView = arCamera.fieldOfView;
+        tempFieldOfView = arCamera.fieldOfView;
+
+        startOrthographicSize = 5;
+        tempOrthographicSize = startOrthographicSize;
     }
 
     private bool EnableGyro()
@@ -63,6 +81,7 @@ public class CamGyro : MonoBehaviour
         }
         return false;
     }
+
     private void Update()
     {
         if (gyroEnabled)
@@ -83,13 +102,13 @@ public class CamGyro : MonoBehaviour
             }
 
 
-            if (camera2D == true)
+            if (topView == true)
             {
                 if (Input.touchCount < 2)
                 {
                     if (touch1.phase == TouchPhase.Moved)
                     {
-                        MoveCamera2D(touch1);
+                        PanCamera(touch1);
                     }
                 }
 
@@ -138,11 +157,17 @@ public class CamGyro : MonoBehaviour
             if (hitObject.tag == "Camera Position")
             {
 
-                if (camera2D == true)
+                if (topView == true)
                 {
+                    transform.localRotation = Quaternion.Euler(90f, 90f, 0f);
+
                     arCamera.orthographic = false;
+                    arCamera.fieldOfView = startFieldOfView; 
                     gyroEnabled = true;
                     camera2D = false;
+                    topView = false;
+
+                    button2D.GetComponentInChildren<Text>().text = "2D VIEW";
                 }
 
                 previousCameraPosition = currentCameraPosition;
@@ -153,6 +178,7 @@ public class CamGyro : MonoBehaviour
                 previousCameraPosition.SetActive(true);
                 currentCameraPosition.SetActive(false);
 
+                
             }
         }
     }
@@ -189,14 +215,50 @@ public class CamGyro : MonoBehaviour
 
     public void Camera2D()
     {
-        if (cameraContainer.transform.position != camera2DPosition.transform.position)
+        if (!camera2D)
         {
             camera2D = true;
+            topView = true;
 
             previousCameraPosition = currentCameraPosition;
-            currentCameraPosition = camera2DPosition;
+            currentCameraPosition = cameraTopViewPosition;
 
-            cameraContainer.transform.position = camera2DPosition.transform.position;
+            cameraContainer.transform.position = cameraTopViewPosition.transform.position;
+
+            previousCameraPosition.SetActive(true);
+            currentCameraPosition.SetActive(false);
+
+            arCamera.orthographic = true;
+            gyroEnabled = false;
+
+            transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+
+            button2D.GetComponentInChildren<Text>().text = "3D VIEW";
+
+            arCamera.orthographicSize = tempOrthographicSize;
+
+        }
+        else
+        {
+            camera2D = false;
+            arCamera.orthographic = false;
+
+            button2D.GetComponentInChildren<Text>().text = "2D VIEW";
+
+            arCamera.fieldOfView = tempFieldOfView;
+        }
+    }
+
+    public void TopView()
+    {
+        if (!topView)
+        {
+            topView = true;
+
+            previousCameraPosition = currentCameraPosition;
+            currentCameraPosition = cameraTopViewPosition;
+
+            cameraContainer.transform.position = cameraTopViewPosition.transform.position;
 
             previousCameraPosition.SetActive(true);
             currentCameraPosition.SetActive(false);
@@ -209,14 +271,15 @@ public class CamGyro : MonoBehaviour
         }
     }
 
-    public void MoveCamera2D(Touch touch)
+    public void PanCamera(Touch touch)
     {
         Vector2 touchDeltaPosition = touch.deltaPosition;
-        transform.Translate(-touchDeltaPosition.x * panSpeed * Time.deltaTime, -touchDeltaPosition.y * panSpeed * Time.deltaTime, 0);
+        cameraContainer.transform.Translate(-touchDeltaPosition.x * panSpeed * Time.deltaTime, -touchDeltaPosition.y * panSpeed * Time.deltaTime, 0);
     }
 
     public void ZoomCamera(Touch touch1, Touch touch2)
     {
+       
         Vector2 touchZeroPrevPos = touch1.position - touch1.deltaPosition;
         Vector2 touchOnePrevPos = touch2.position - touch2.deltaPosition;
 
@@ -225,6 +288,22 @@ public class CamGyro : MonoBehaviour
 
         float difference = currentMagnitude - prevMagnitude;
 
-        arCamera.orthographicSize = Mathf.Clamp(Camera.main.orthographicSize - difference * zoomSpeed * Time.deltaTime, zoomOutMin, zoomOutMax);
+        if (camera2D)
+        {
+            arCamera.orthographicSize = Mathf.Clamp(arCamera.orthographicSize - difference * zoomSpeed * Time.deltaTime, zoomOutMin, zoomOutMax);
+            tempFieldOfView = Mathf.Clamp(tempFieldOfView - difference * zoomSpeed3D * Time.deltaTime, 30, 110);
+        }
+        else
+        {
+            arCamera.fieldOfView = Mathf.Clamp(arCamera.fieldOfView - difference * zoomSpeed3D * Time.deltaTime, 30, 110);
+            tempOrthographicSize = Mathf.Clamp(tempOrthographicSize - difference * zoomSpeed * Time.deltaTime, zoomOutMin, zoomOutMax);
+        }
+
     }
+
+    public void ZoomCamera3D(Touch touch1, Touch touch2)
+    {
+
+    }
+
 }
