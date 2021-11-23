@@ -11,6 +11,10 @@ public class CamGyro : MonoBehaviour
     public GameObject ceilingLights;
     public GameObject roof;
     public GameObject camera2DPosition;
+    public float panSpeed = 0.1f;
+    public float zoomSpeed = 0.1f;
+    public float zoomOutMin = 1f;
+    public float zoomOutMax = 10f;
 
     private bool gyroEnabled;
     private Gyroscope gyro;
@@ -68,22 +72,34 @@ public class CamGyro : MonoBehaviour
 
         if (Input.touchCount > 0)
         {
-            Touch touch = Input.GetTouch(0);
+            Touch touch1 = Input.GetTouch(0);
 
-            if (touch.phase == TouchPhase.Began)
+            if (Input.touchCount < 2)
             {
-                RaycastChangePosition(touch);
+                if (touch1.phase == TouchPhase.Began)
+                {
+                    RaycastChangePosition(touch1);
+                }
             }
+
 
             if (camera2D == true)
             {
-                if (touch.phase == TouchPhase.Moved)
+                if (Input.touchCount < 2)
                 {
-                    MoveCamera2D(touch);
+                    if (touch1.phase == TouchPhase.Moved)
+                    {
+                        MoveCamera2D(touch1);
+                    }
                 }
 
-                Touch touch2 = Input.GetTouch(1);
 
+                if (Input.touchCount == 2)
+                {
+                    Touch touch2 = Input.GetTouch(1);
+
+                    ZoomCamera(touch1, touch2);
+                }
             }
         }
     }
@@ -195,6 +211,20 @@ public class CamGyro : MonoBehaviour
 
     public void MoveCamera2D(Touch touch)
     {
+        Vector2 touchDeltaPosition = touch.deltaPosition;
+        transform.Translate(-touchDeltaPosition.x * panSpeed * Time.deltaTime, -touchDeltaPosition.y * panSpeed * Time.deltaTime, 0);
+    }
 
+    public void ZoomCamera(Touch touch1, Touch touch2)
+    {
+        Vector2 touchZeroPrevPos = touch1.position - touch1.deltaPosition;
+        Vector2 touchOnePrevPos = touch2.position - touch2.deltaPosition;
+
+        float prevMagnitude = (touchZeroPrevPos - touchOnePrevPos).magnitude;
+        float currentMagnitude = (touch1.position - touch2.position).magnitude;
+
+        float difference = currentMagnitude - prevMagnitude;
+
+        arCamera.orthographicSize = Mathf.Clamp(Camera.main.orthographicSize - difference * zoomSpeed * Time.deltaTime, zoomOutMin, zoomOutMax);
     }
 }
