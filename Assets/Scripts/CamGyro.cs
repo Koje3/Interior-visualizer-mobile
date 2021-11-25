@@ -32,6 +32,7 @@ public class CamGyro : MonoBehaviour
 
     private GameObject currentCameraPosition;
     private GameObject previousCameraPosition;
+    private Vector3 cameraDestination;
 
     private bool camera2D;
     private bool topView;
@@ -41,8 +42,12 @@ public class CamGyro : MonoBehaviour
     private float startOrthographicSize;
     private float tempOrthographicSize;
 
+    private float lerpDuration = 0.5f;
+    private float lerpRotationDuration = 0.5f;
+    private bool changeCameraPosition;
 
-   // public GameObject[] cameraPositions;
+
+    // public GameObject[] cameraPositions;
 
     private void Start()
     {
@@ -65,6 +70,8 @@ public class CamGyro : MonoBehaviour
 
         startOrthographicSize = 5;
         tempOrthographicSize = startOrthographicSize;
+
+        changeCameraPosition = false;
     }
 
     private bool EnableGyro()
@@ -86,10 +93,12 @@ public class CamGyro : MonoBehaviour
     {
         if (gyroEnabled)
         {
-            transform.localRotation = gyro.attitude * rot;
+            // transform.localRotation = gyro.attitude * rot;
+
+            transform.localRotation = Quaternion.Slerp(transform.localRotation, gyro.attitude * rot, 0.1f);
         }
 
-        if (Input.touchCount > 0)
+        if (Input.touchCount > 0 && !changeCameraPosition)
         {
             Touch touch1 = Input.GetTouch(0);
 
@@ -124,25 +133,6 @@ public class CamGyro : MonoBehaviour
     }
 
 
-    /*
-    public void ChangePosition()
-    {
-        Vector3 position1 = cameraPositions[0].transform.position;
-        Vector3 position2 = cameraPositions[1].transform.position;
-
-        if (cameraContainer.transform.position == position1)
-        {
-            cameraContainer.transform.position = position2;
-        }
-
-        else if (cameraContainer.transform.position == position2)
-        {
-            cameraContainer.transform.position = position1;
-        }
-
-    }
-    */
-
     public void RaycastChangePosition(Touch touch)
     {
         Ray ray = arCamera.ScreenPointToRay(touch.position);
@@ -159,29 +149,49 @@ public class CamGyro : MonoBehaviour
 
                 if (topView == true)
                 {
-                    transform.localRotation = Quaternion.Euler(90f, 90f, 0f);
+
+                    gyroEnabled = true;
 
                     arCamera.orthographic = false;
-                    arCamera.fieldOfView = startFieldOfView; 
-                    gyroEnabled = true;
+                    arCamera.fieldOfView = startFieldOfView;                     
                     camera2D = false;
                     topView = false;
 
                     button2D.GetComponentInChildren<Text>().text = "2D VIEW";
+                    
                 }
 
                 previousCameraPosition = currentCameraPosition;
-                currentCameraPosition = hitObject;               
+                currentCameraPosition = hitObject;
 
-                cameraContainer.transform.position = hitObject.transform.position;
+                cameraDestination = hitObject.transform.position;
+                StartCoroutine(ChangePositionSmooth(cameraDestination));
 
                 previousCameraPosition.SetActive(true);
                 currentCameraPosition.SetActive(false);
 
-                
             }
         }
     }
+
+    public IEnumerator ChangePositionSmooth(Vector3 cameraDestination)
+    {
+        float timeElapsed = 0f;
+        changeCameraPosition = true;
+        Vector3 startPosition = cameraContainer.transform.position;
+
+        while (timeElapsed < lerpDuration)
+        {
+            cameraContainer.transform.position = Vector3.Lerp(startPosition, cameraDestination, timeElapsed / lerpDuration);
+            timeElapsed += Time.deltaTime;
+
+            yield return null;
+        }
+
+            changeCameraPosition = false;
+            cameraContainer.transform.position = cameraDestination;                       
+    }
+
 
     public void ShowCameraPositions()
     {
@@ -215,40 +225,45 @@ public class CamGyro : MonoBehaviour
 
     public void Camera2D()
     {
-        if (!camera2D)
+        if (!changeCameraPosition)
         {
-            camera2D = true;
-            topView = true;
+            if (!camera2D)
+            {
+                camera2D = true;
+                topView = true;
 
-            previousCameraPosition = currentCameraPosition;
-            currentCameraPosition = cameraTopViewPosition;
+                previousCameraPosition = currentCameraPosition;
+                currentCameraPosition = cameraTopViewPosition;
 
-            cameraContainer.transform.position = cameraTopViewPosition.transform.position;
+                cameraContainer.transform.position = cameraTopViewPosition.transform.position;
 
-            previousCameraPosition.SetActive(true);
-            currentCameraPosition.SetActive(false);
+                previousCameraPosition.SetActive(true);
+                currentCameraPosition.SetActive(false);
 
-            arCamera.orthographic = true;
-            gyroEnabled = false;
+                arCamera.orthographic = true;
+                gyroEnabled = false;
 
-            transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+                transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
 
-            button2D.GetComponentInChildren<Text>().text = "3D VIEW";
+                button2D.GetComponentInChildren<Text>().text = "3D VIEW";
 
-            arCamera.orthographicSize = tempOrthographicSize;
+                arCamera.orthographicSize = tempOrthographicSize;
 
+            }
+            else
+            {
+                camera2D = false;
+                arCamera.orthographic = false;
+
+                button2D.GetComponentInChildren<Text>().text = "2D VIEW";
+
+                arCamera.fieldOfView = tempFieldOfView;
+            }
         }
-        else
-        {
-            camera2D = false;
-            arCamera.orthographic = false;
-
-            button2D.GetComponentInChildren<Text>().text = "2D VIEW";
-
-            arCamera.fieldOfView = tempFieldOfView;
-        }
+       
     }
 
+    /*
     public void TopView()
     {
         if (!topView)
@@ -270,6 +285,7 @@ public class CamGyro : MonoBehaviour
 
         }
     }
+    */
 
     public void PanCamera(Touch touch)
     {
@@ -301,9 +317,5 @@ public class CamGyro : MonoBehaviour
 
     }
 
-    public void ZoomCamera3D(Touch touch1, Touch touch2)
-    {
-
-    }
 
 }
